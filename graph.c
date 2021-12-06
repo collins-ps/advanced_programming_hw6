@@ -130,14 +130,14 @@ Graph *transpose_graph(Graph *g_original, Graph *g){
   return g;
 }
 
-void dfs(Graph *g, int v, bool *processed){
+void dfs(Graph *g, int v, bool *processed, int *levels, int curr_level){
     // printf("%d\n", v);
     processed[v] = true;
+    levels[v] = curr_level++;
     Edgenode *edge = g->edges[v];
     while (edge != NULL){
       if (processed[edge->y] == false){
-        dfs(g, edge->y, processed);
-        // edge = edge->next;
+        dfs(g, edge->y, processed, levels, curr_level);
       }
       edge = edge->next;
     }
@@ -145,10 +145,11 @@ void dfs(Graph *g, int v, bool *processed){
 
 int kosaraju(Graph *g){
     bool *processed = malloc((g->nvertices)*sizeof(bool));
+    int levels[g->nvertices];
     for (int i=1; i < g->nvertices; i++){
       processed[i] = false;
     }
-    dfs(g, 1, processed);
+    dfs(g, 1, processed, levels, 1);
     for (int i=1; i < g->nvertices; i++){
       if( processed[i] == 0)
         return 0;
@@ -158,7 +159,7 @@ int kosaraju(Graph *g){
     }
     Graph g_transpose;
     transpose_graph(g, &g_transpose);
-    dfs(&g_transpose, 1, processed);
+    dfs(&g_transpose, 1, processed, levels, 1);
     for (int i=1; i < g->nvertices; i++){
       if( processed[i] == 0)
         return 0;
@@ -168,11 +169,61 @@ int kosaraju(Graph *g){
     return 1;
 }
 
+int gcd(int a, int b){
+    if (a == 0)
+        return b;
+    return gcd(b%a, a);
+}
+
+int findGCD(int arr[], int n) // referenced https://www.geeksforgeeks.org/gcd-two-array-numbers/
+{
+    int result = arr[0];
+    for (int i = 1; i < n; i++)
+    {
+        result = gcd(arr[i], result);
+ 
+        if(result == 1)
+        {
+           return 1;
+        }
+    }
+    return result;
+}
+
+int find_period(Graph *g){
+    bool *processed = malloc((g->nvertices)*sizeof(bool));
+    int *levels = malloc((g->nvertices)*sizeof(int));
+    for (int i=1; i < g->nvertices; i++){
+      processed[i] = false;
+      levels[i] = 0;
+    }
+    dfs(g, 1, processed, levels, 1);
+    // for (int i=1; i < g->nvertices; i++){
+    //   printf("i: %d, level: %d\n", i, levels[i]);
+    // }
+    int k_set[g->nedges];
+    int j = 0;
+    for (int i = 0; i < g->nvertices; i++){ // outgoing 
+      Edgenode *edge = g->edges[i];
+      while (edge != NULL){ // ingoing
+        k_set[j] =  levels[edge->y] - levels[i] - 1;
+        // printf("%d ", k_set[j]);
+        j++;
+        edge = edge->next;
+      }
+    }
+    int gcd = abs(findGCD(k_set,g->nedges));
+    free(processed);
+    free(levels);
+    return gcd;
+}
+
 int main(){
     Graph g;
     read_graph("markov-graph.txt",&g,true); 
     if (kosaraju(&g) == 1)
         printf("Graph is irreducible.\n");
+    printf("Period is: %d\n", find_period(&g));
     destroyGraph(&g);
     return 0;
 }
