@@ -3,6 +3,7 @@
 #include<stdbool.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 #include "graph.h"
 
 void print_graph(Graph *g){
@@ -129,19 +130,50 @@ Graph *transpose_graph(Graph *g_original, Graph *g){
   return g;
 }
 
-// int kosaraju(Graph *g){
+void dfs(Graph *g, int v, bool *processed){
+    // printf("%d\n", v);
+    processed[v] = true;
+    Edgenode *edge = g->edges[v];
+    while (edge != NULL){
+      if (processed[edge->y] == false){
+        dfs(g, edge->y, processed);
+        // edge = edge->next;
+      }
+      edge = edge->next;
+    }
+}
 
-// }
+int kosaraju(Graph *g){
+    bool *processed = malloc((g->nvertices)*sizeof(bool));
+    for (int i=1; i < g->nvertices; i++){
+      processed[i] = false;
+    }
+    dfs(g, 1, processed);
+    for (int i=1; i < g->nvertices; i++){
+      if( processed[i] == 0)
+        return 0;
+    }
+    for (int i=1; i < g->nvertices; i++){
+      processed[i] = false;
+    }
+    Graph g_transpose;
+    transpose_graph(g, &g_transpose);
+    dfs(&g_transpose, 1, processed);
+    for (int i=1; i < g->nvertices; i++){
+      if( processed[i] == 0)
+        return 0;
+    }
+    free(processed);
+    destroyGraph(&g_transpose);
+    return 1;
+}
 
 int main(){
     Graph g;
     read_graph("markov-graph.txt",&g,true); 
-    // print_graph(&g);
-    Graph transpose;
-    transpose_graph(&g, &transpose);
-    print_graph(&transpose);
+    if (kosaraju(&g) == 1)
+        printf("Graph is irreducible.\n");
     destroyGraph(&g);
-    destroyGraph(&transpose);
     return 0;
 }
 
