@@ -24,17 +24,21 @@ void destroyMatrix(double **matrix);
 void printMatrix(double **matrix);
 double **generateCDF(double **pdf);
 void markovChain(int x, double **pdf, int nsteps, double *visits);
+double *findProbabilities(Graph *g, int num_iters, int sample_size);
 
 int main(int argc, char **argv){
     int num_iters; 
     int sample_size;
-    if (argc > 2){
+    int checks;
+    if (argc > 3){
       num_iters = atoi(argv[1]);
       sample_size = atoi(argv[2]);
+      checks = atoi(argv[3]);
     }
     else{
       num_iters = 10; 
       sample_size = 10000000;
+      checks = 0;
     }
 
     srand(time(NULL)); 
@@ -42,63 +46,30 @@ int main(int argc, char **argv){
     read_graph("markov-graph.txt",&g,true); 
 
     if (kosaraju(&g) == 1)
-        printf("Graph is irreducible.\n");
+      printf("Graph is irreducible.\n");
     printf("Period is: %d\n", find_period(&g));
 
-    double **pdf = generateMatrix(&g);
-    double **sampling_distribution = malloc(sizeof(double*) * (num_iters+1));
-    for (int i = 1; i <= num_iters; i++){
-      sampling_distribution[i] = malloc(sizeof(double) * g.nvertices);
-      for (int j = 1; j < g.nvertices; j++){
-        sampling_distribution[i][j] = 0.;
-      }
-    }
-
-    for (int i = 1; i <= num_iters; i++){
-      int r = rand() % g.nvertices;
-      markovChain(r,pdf,sample_size, sampling_distribution[i]);
-    }
-
-    double mean_proportion[g.nvertices];
-    for (int i = 1; i < g.nvertices; i++){
-      double total_visits = 0;
-      for (int j = 1; j <= num_iters; j++){
-        total_visits += sampling_distribution[j][i];
-      }
-      mean_proportion[i] = total_visits / (num_iters * sample_size);
-    }
+    double *results = findProbabilities(&g,num_iters, sample_size);
     double sum = 0;
     printf("Given %d iterations and %d steps, estimated stationary probabilities (5dp):\n", num_iters, sample_size);
     for (int i = 1; i < g.nvertices; i++){
-      printf("%.5f ", mean_proportion[i]);
-      sum += mean_proportion[i];
+      printf("%.5f ", results[i]);
+      sum += results[i];
     }
     printf("\n%.3f\n", sum);
 
-    // int within_range = 0;
-    // for (int i = 1; i < g.nvertices; i++){
-    //   for (int j = 1; j <= num_iters; j++){
-    //     double sample_proportion = (double)sampling_distribution[j][i] / (double)sample_size;
-    //     // assert( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) <= (0.1/100) );
-    //     if( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) <= (0.1/100) )
-    //       within_range++;
-    //   }
-    // }
+    double perc_diff = 0;
+    for (int i = 1; i <= checks; i++){
+      double *check = findProbabilities(&g,num_iters, sample_size);
+      for (int j = 1; j < g.nvertices; j++){
+        perc_diff += fabs( (results[j] - check[j]) / results[j] ) * 100;
+      }
+      free(check);
+    }
+    double ave_perc_diff = perc_diff / ( (g.nvertices-1) * checks );
+    printf("Average percentage difference: %.3f\n", ave_perc_diff);
     
-    // for (int j = 1; j <= num_iters; j++){
-    //   for (int i = 1; i < g.nvertices; i++){
-    //     double sample_proportion = (double)sampling_distribution[j][i] / (double)sample_size;
-    //     // assert( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) <= (0.1/100) );
-    //     // if( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) <= (0.1/100) )
-    //     //   within_range++;
-    //   }
-    // }
-    // printf("\nStationary probabilities for each sample was less than 0.1 percent different from mean stationary probabilities.\n");
-
-    destroyMatrix(pdf);
-    for (int i = 1; i <= num_iters; i++)
-      free(sampling_distribution[i]);
-    free(sampling_distribution);
+    free(results);
     destroyGraph(&g);
     return 0;
 }
@@ -368,4 +339,35 @@ void markovChain(int x, double **pdf, int nsteps, double *visits){
     visits[j]++;
   }
   destroyMatrix(cdf);
+}
+
+double *findProbabilities(Graph *g, int num_iters, int sample_size){
+  double **pdf = generateMatrix(g);
+  double **sampling_distribution = malloc(sizeof(double*) * (num_iters+1));
+  for (int i = 1; i <= num_iters; i++){
+    sampling_distribution[i] = malloc(sizeof(double) * g->nvertices);
+    for (int j = 1; j < g->nvertices; j++){
+      sampling_distribution[i][j] = 0.;
+    }
+  }
+
+  for (int i = 1; i <= num_iters; i++){
+    int r = rand() % g->nvertices;
+    markovChain(r,pdf,sample_size, sampling_distribution[i]);
+  }
+
+  double *mean_proportion = malloc(g->nvertices * sizeof(double));
+  for (int i = 1; i < g->nvertices; i++){
+    double total_visits = 0;
+    for (int j = 1; j <= num_iters; j++){
+      total_visits += sampling_distribution[j][i];
+    }
+    mean_proportion[i] = total_visits / (num_iters * sample_size);
+  }
+  
+  destroyMatrix(pdf);
+  for (int i = 1; i <= num_iters; i++)
+    free(sampling_distribution[i]);
+  free(sampling_distribution);
+  return mean_proportion;
 }
