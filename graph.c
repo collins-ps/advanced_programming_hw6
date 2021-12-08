@@ -76,7 +76,7 @@ int main(int argc, char **argv){
         assert( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) < 0.1 );
       }
     }
-    printf("Stationary probabilities for each sample was less than 0.1 percent different from mean stationary probabilities.\n");
+    printf("\nStationary probabilities for each sample was less than 0.1 percent different from mean stationary probabilities.\n");
 
     destroyMatrix(pdf);
     for (int i = 1; i <= num_iters; i++)
