@@ -73,7 +73,7 @@ int main(int argc, char **argv){
     for (int i = 1; i < g.nvertices; i++){
       for (int j = 1; j <= num_iters; j++){
         double sample_proportion = (double)sampling_distribution[j][i] / (double)sample_size;
-        assert( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) < 0.1 );
+        assert( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) < (0.1/100) );
       }
     }
     printf("\nStationary probabilities for each sample was less than 0.1 percent different from mean stationary probabilities.\n");
