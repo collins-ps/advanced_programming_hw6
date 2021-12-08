@@ -5,7 +5,86 @@
 #include <ctype.h>
 #include <assert.h>
 #include <time.h>
+#include <math.h>
 #include "graph.h"
+
+void print_graph(Graph *g);
+void read_graph(char *filename, Graph *g, bool directed);
+void destroyGraph(Graph *g);
+Graph *transpose_graph(Graph *g_original, Graph *g);
+void dfs(Graph *g, int v, bool *processed, int *levels, int curr_level);
+int kosaraju(Graph *g);
+int gcd(int a, int b);
+int findGCD(int arr[], int n); // referenced https://www.geeksforgeeks.org/gcd-two-array-numbers/
+int find_period(Graph *g);
+double **generateMatrix(Graph *g);
+void destroyMatrix(double **matrix);
+void printMatrix(double **matrix);
+double **generateCDF(double **pdf);
+void markovChain(int x, double **pdf, int nsteps, double *visits);
+
+int main(int argc, char **argv){
+    int num_iters; 
+    int sample_size;
+    if (argc > 2){
+      num_iters = atoi(argv[1]);
+      sample_size = atoi(argv[2]);
+    }
+    else{
+      num_iters = 100; 
+      sample_size = 1000000;
+    }
+
+    srand(time(NULL)); 
+    Graph g;
+    read_graph("markov-graph.txt",&g,true); 
+
+    if (kosaraju(&g) == 1)
+        printf("Graph is irreducible.\n");
+    printf("Period is: %d\n", find_period(&g));
+
+    double **pdf = generateMatrix(&g);
+    double **sampling_distribution = malloc(sizeof(double*) * (num_iters+1));
+    for (int i = 1; i <= num_iters; i++){
+      sampling_distribution[i] = malloc(sizeof(double) * g.nvertices);
+      for (int j = 1; j < g.nvertices; j++){
+        sampling_distribution[i][j] = 0.;
+      }
+    }
+
+    for (int i = 1; i <= num_iters; i++){
+      int r = rand() % 101;
+      markovChain(r,pdf,sample_size, sampling_distribution[i]);
+    }
+
+    double mean_proportion[101];
+    for (int i = 1; i < g.nvertices; i++){
+      double total_visits = 0;
+      for (int j = 1; j <= num_iters; j++){
+        total_visits += sampling_distribution[j][i];
+      }
+      mean_proportion[i] = total_visits / (num_iters * sample_size);
+    }
+    printf("Given %d iterations and %d steps, estimated stationary probabilities (5dp):\n", num_iters, sample_size);
+    for (int i = 1; i < g.nvertices; i++){
+      printf("%.5f ", mean_proportion[i]);
+    }
+
+    for (int i = 1; i < g.nvertices; i++){
+      for (int j = 1; j <= num_iters; j++){
+        double sample_proportion = (double)sampling_distribution[j][i] / (double)sample_size;
+        assert( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) < 0.1 );
+      }
+    }
+    printf("Stationary probabilities for each sample was less than 0.1 percent different from mean stationary probabilities.\n");
+
+    destroyMatrix(pdf);
+    for (int i = 1; i <= num_iters; i++)
+      free(sampling_distribution[i]);
+    free(sampling_distribution);
+    destroyGraph(&g);
+    return 0;
+}
 
 void print_graph(Graph *g){
   Edgenode *e = NULL;
@@ -105,14 +184,12 @@ Graph *transpose_graph(Graph *g_original, Graph *g){
     while (e != NULL) {                          /* traverse list */
       Edgenode *new_node = (Edgenode *) malloc(sizeof(Edgenode));
     int u = e->y; 
-    // int v = i;
     double w = e->weight;
     if (g->edges[u] == NULL) {       /* if first edge foor vertex u */
       g->edges[u] = new_node;
       g->edges[u]->y = i;
       g->edges[u]->weight = w;
       g->edges[u]->next = NULL;
-      // prev = new_node;
     } else {                         /* adding another edge to vertex u */
       Edgenode *crawl = g->edges[u];
       while (crawl != NULL){
@@ -123,7 +200,6 @@ Graph *transpose_graph(Graph *g_original, Graph *g){
       new_node->y = i;
       new_node->weight = w;
       new_node->next = NULL;
-      // prev = new_node;
     }
       e = e->next;
     }
@@ -132,7 +208,6 @@ Graph *transpose_graph(Graph *g_original, Graph *g){
 }
 
 void dfs(Graph *g, int v, bool *processed, int *levels, int curr_level){
-    // printf("%d\n", v);
     processed[v] = true;
     levels[v] = curr_level++;
     Edgenode *edge = g->edges[v];
@@ -199,16 +274,12 @@ int find_period(Graph *g){
       levels[i] = 0;
     }
     dfs(g, 1, processed, levels, 1);
-    // for (int i=1; i < g->nvertices; i++){
-    //   printf("i: %d, level: %d\n", i, levels[i]);
-    // }
     int k_set[g->nedges];
     int j = 0;
     for (int i = 0; i < g->nvertices; i++){ // outgoing 
       Edgenode *edge = g->edges[i];
       while (edge != NULL){ // ingoing
         k_set[j] =  levels[edge->y] - levels[i] - 1;
-        // printf("%d ", k_set[j]);
         j++;
         edge = edge->next;
       }
@@ -268,10 +339,6 @@ double **generateCDF(double **pdf){
 
 void markovChain(int x, double **pdf, int nsteps, double *visits){
   double **cdf = generateCDF(pdf);
-  // int visits[101]; 
-  // for (int i = 1; i < 101; i++){
-  //   visits[i] = 0;
-  // }
   for (int i = 1; i <= nsteps; i++){
     double rn = (double)rand() / (double)RAND_MAX;
     int j = 1;
@@ -284,84 +351,4 @@ void markovChain(int x, double **pdf, int nsteps, double *visits){
     visits[j]++;
   }
   destroyMatrix(cdf);
-  // for (int i = 1; i < 101; i++){
-  //   printf("%.3f ", (double)visits[i] / (double)nsteps );
-  // }
 }
-
-
-int main(){
-    srand(time(NULL)); 
-    Graph g;
-    read_graph("markov-graph.txt",&g,true); 
-    // if (kosaraju(&g) == 1)
-    //     printf("Graph is irreducible.\n");
-    // printf("Period is: %d\n", find_period(&g));
-    double **matrix = generateMatrix(&g);
-
-    // double **cdf = generateCDF(matrix);
-    // printMatrix(cdf);
-    // destroyMatrix(cdf);
-
-    double *visits = malloc(sizeof(double) * 101);
-    int num_iters = 100; // in millions
-    for (int i = 1; i < 101; i++){
-      visits[i] = 0;
-    }
-    for (int i = 1; i <= num_iters; i++){
-      int r = rand() % 101;
-      markovChain(r,matrix,1000000, visits);
-    }
-    double sum = 0;
-    for (int i = 1; i < 101; i++){
-      visits[i] = (double)visits[i] / (double)(num_iters * 1000000);
-      printf("%.3f ", visits[i]);
-      sum += visits[i];
-    }
-    assert(sum - 1 < 0.000001);
-    
-    free(visits);
-
-    // printMatrix(matrix);
-    // findProbabilities(matrix, &g);
-    destroyMatrix(matrix);
-    
-    destroyGraph(&g);
-    return 0;
-}
-
-// double **findProbabilities(double **matrix, Graph *g){
-//   double **k_step = malloc( (101) * sizeof(double *));
-//   for (int i = 1; i < 101; i++){
-//     k_step[i] = malloc(101 * sizeof(double));
-//     for (int j = 1; j < 101; j++){
-//       k_step[i][j] = matrix[i][j];
-//     }
-//   }
-
-//   int steps = 10000000;
-    
-//   for (int i = 1; i <= 10000000; i++){ // 2 step
-//     mulMat(k_step, matrix, k_step);
-//   }
-//   while (k_step[1][1] - k_step[100][1] > 0.00000001){
-//     printf("Not equal\n");
-//     steps += 1000000;
-//     for (int i = 1; i <= 1000000; i++){ // 2 step
-//       mulMat(k_step, matrix, k_step);
-//     }
-//   }
-
-  
-//   // while ((k_step[1][5] - k_step[100][5] > 0.000001) ){ 
-//   //   steps++;
-//   //   mulMat(k_step, matrix, k_step);
-//   // }
-
-//   // double **k_step = mulMat(matrix, matrix);
-//   printMatrix(k_step, g);
-//   printf("\nSteps: %d\n", steps);
-//   for (int i = 1; i < 101; i++)
-//     free(k_step[i]);
-//   free(k_step);
-// }
