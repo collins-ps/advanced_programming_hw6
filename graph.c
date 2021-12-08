@@ -8,6 +8,8 @@
 #include <math.h>
 #include "graph.h"
 
+#define num_vertices 101
+
 void print_graph(Graph *g);
 void read_graph(char *filename, Graph *g, bool directed);
 void destroyGraph(Graph *g);
@@ -31,8 +33,8 @@ int main(int argc, char **argv){
       sample_size = atoi(argv[2]);
     }
     else{
-      num_iters = 100; 
-      sample_size = 1000000;
+      num_iters = 10; 
+      sample_size = 10000000;
     }
 
     srand(time(NULL)); 
@@ -53,11 +55,11 @@ int main(int argc, char **argv){
     }
 
     for (int i = 1; i <= num_iters; i++){
-      int r = rand() % 101;
+      int r = rand() % g.nvertices;
       markovChain(r,pdf,sample_size, sampling_distribution[i]);
     }
 
-    double mean_proportion[101];
+    double mean_proportion[g.nvertices];
     for (int i = 1; i < g.nvertices; i++){
       double total_visits = 0;
       for (int j = 1; j <= num_iters; j++){
@@ -65,18 +67,33 @@ int main(int argc, char **argv){
       }
       mean_proportion[i] = total_visits / (num_iters * sample_size);
     }
+    double sum = 0;
     printf("Given %d iterations and %d steps, estimated stationary probabilities (5dp):\n", num_iters, sample_size);
     for (int i = 1; i < g.nvertices; i++){
       printf("%.5f ", mean_proportion[i]);
+      sum += mean_proportion[i];
     }
+    printf("\n%.3f\n", sum);
 
-    for (int i = 1; i < g.nvertices; i++){
-      for (int j = 1; j <= num_iters; j++){
-        double sample_proportion = (double)sampling_distribution[j][i] / (double)sample_size;
-        assert( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) < (0.1/100) );
-      }
-    }
-    printf("\nStationary probabilities for each sample was less than 0.1 percent different from mean stationary probabilities.\n");
+    // int within_range = 0;
+    // for (int i = 1; i < g.nvertices; i++){
+    //   for (int j = 1; j <= num_iters; j++){
+    //     double sample_proportion = (double)sampling_distribution[j][i] / (double)sample_size;
+    //     // assert( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) <= (0.1/100) );
+    //     if( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) <= (0.1/100) )
+    //       within_range++;
+    //   }
+    // }
+    
+    // for (int j = 1; j <= num_iters; j++){
+    //   for (int i = 1; i < g.nvertices; i++){
+    //     double sample_proportion = (double)sampling_distribution[j][i] / (double)sample_size;
+    //     // assert( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) <= (0.1/100) );
+    //     // if( fabs( (sample_proportion - mean_proportion[i]) / mean_proportion[i] ) <= (0.1/100) )
+    //     //   within_range++;
+    //   }
+    // }
+    // printf("\nStationary probabilities for each sample was less than 0.1 percent different from mean stationary probabilities.\n");
 
     destroyMatrix(pdf);
     for (int i = 1; i <= num_iters; i++)
@@ -106,7 +123,7 @@ void read_graph(char *filename, Graph *g, bool directed){
     FILE *file = NULL;
     char *line = NULL;
     file = fopen(filename,"r");
-    g->nvertices = 101;                      
+    g->nvertices = num_vertices;                      
     g->directed = true;
     g->edges = malloc((g->nvertices)*sizeof(Edgenode));
     for (int i=0;i<g->nvertices;++i)
@@ -309,15 +326,15 @@ double **generateMatrix(Graph *g){
 }
 
 void destroyMatrix(double **matrix){
-  for (int i = 1; i < 101; i++){
+  for (int i = 1; i < num_vertices; i++){
     free(matrix[i]);
   }
   free(matrix);
 }
 
 void printMatrix(double **matrix){
-  for (int i = 1; i < 101; i++){
-    for (int j = 1; j < 101; j++) {
+  for (int i = 1; i < num_vertices; i++){
+    for (int j = 1; j < num_vertices; j++) {
       printf("%.9f ", matrix[i][j]);
     }
     printf("\n");
@@ -325,9 +342,9 @@ void printMatrix(double **matrix){
 }
 
 double **generateCDF(double **pdf){
-  double **matrix = malloc( (101) * sizeof(double *));
-  for (int i = 1; i < 101; i++){
-    matrix[i] = malloc(101 * sizeof(double));
+  double **matrix = malloc( (num_vertices) * sizeof(double *));
+  for (int i = 1; i < num_vertices; i++){
+    matrix[i] = malloc(num_vertices * sizeof(double));
     matrix[i][1] = pdf[i][1];
     for (int j = 2; j < 100; j++){
       matrix[i][j] = pdf[i][j] + matrix[i][j-1];
