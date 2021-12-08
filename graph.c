@@ -188,7 +188,7 @@ int findGCD(int arr[], int n) // referenced https://www.geeksforgeeks.org/gcd-tw
            return 1;
         }
     }
-    return result;
+    return abs(result);
 }
 
 int find_period(Graph *g){
@@ -213,7 +213,7 @@ int find_period(Graph *g){
         edge = edge->next;
       }
     }
-    int gcd = abs(findGCD(k_set,g->nedges));
+    int gcd = findGCD(k_set,g->nedges);
     free(processed);
     free(levels);
     return gcd;
@@ -251,27 +251,6 @@ void printMatrix(double **matrix){
     }
     printf("\n");
   }
-}
-
-void mulMat(double **mat1, double **mat2, double **rslt) { // referenced https://www.geeksforgeeks.org/c-program-multiply-two-matrices/
-    // double **rslt = malloc( (101) * sizeof(double *));
-    // for (int i = 1; i < 101; i++)
-    //   rslt[i] = malloc(101 * sizeof(double));
- 
-    for (int i = 1; i < 101; i++) {
-        for (int j = 1; j < 101; j++) {
-            rslt[i][j] = 0;
- 
-            for (int k = 1; k < 101; k++) {
-                rslt[i][j] += mat1[i][k] * mat2[k][j];
-            }
- 
-            // printf("%d\t", rslt[i][j]);
-        }
- 
-        // printf("\n");
-    }
-    // return rslt;
 }
 
 double **generateCDF(double **pdf){
@@ -325,7 +304,7 @@ int main(){
     // destroyMatrix(cdf);
 
     double *visits = malloc(sizeof(double) * 101);
-    int num_iters = 10; // in millions
+    int num_iters = 100; // in millions
     for (int i = 1; i < 101; i++){
       visits[i] = 0;
     }
