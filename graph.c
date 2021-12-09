@@ -57,17 +57,19 @@ int main(int argc, char **argv){
       sum += results[i];
     }
     printf("\n%.3f\n", sum);
-
-    double perc_diff = 0;
-    for (int i = 1; i <= checks; i++){
-      double *check = findProbabilities(&g,num_iters, sample_size);
-      for (int j = 1; j < g.nvertices; j++){
-        perc_diff += fabs( (results[j] - check[j]) / results[j] ) * 100;
-      }
-      free(check);
+    
+    if (checks > 0){
+        double perc_diff = 0;
+        for (int i = 1; i <= checks; i++){
+          double *check = findProbabilities(&g,num_iters, sample_size);
+          for (int j = 1; j < g.nvertices; j++){
+            perc_diff += fabs( (results[j] - check[j]) / results[j] ) * 100;
+          }
+          free(check);
+        }
+        double ave_perc_diff = perc_diff / ( (g.nvertices-1) * checks );
+        printf("Average percentage difference: %.3f\n", ave_perc_diff);
     }
-    double ave_perc_diff = perc_diff / ( (g.nvertices-1) * checks );
-    printf("Average percentage difference: %.3f\n", ave_perc_diff);
     
     free(results);
     destroyGraph(&g);
